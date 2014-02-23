@@ -7,7 +7,7 @@
 ; the terms of this license.
 ; You must not remove this notice, or any other, from this software.
 
-(defproject generuse-jdbc "0.1.0-SNAPSHOT"
+(defproject org.generuse/generuse-jdbc "0.1.0-SNAPSHOT"
   :description "Generuse JDBC module"
   :url "http://generuse.org"
   :license {:name "GNU Lesser General Public License 3.0"
