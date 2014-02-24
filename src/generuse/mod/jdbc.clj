@@ -9,14 +9,87 @@
 
 (ns generuse.mod.jdbc
 	(:gen-class)
-   	(:use [generuse.lib.exec :only (deref-eval)])	
-   	)
+   	(:use 		[generuse.lib.exec :only (deref-eval)]
+            	[clojure.java.jdbc]
+          		[clojure.set 	:only (union)])
+    (:import 	(java.util Random))
+ 	(:require   [clojure.string 	:as str] 
+             	[clj-dbcp.core     	:as dbcp]
+            	[clojure.java.jdbc 	:as jdbc]
+    )	
 )
 
-;TODO
-(def pick_ {:name "pick" :target-type :db_sql})
-(defn ^{:axon pick_} pick[target-eval param-evals 
-											ctx globals & more]
+(defn create-pool[poolmin poolmax partitioncount connurl]
+	(dbcp/make-datasource (union (dbcp/parse-url connurl) {:init-size poolmin :max-active poolmax}))
+)
+
+(defn execute-query [conn table]
+	(println "SELECT * FROM `" table "`")
+	(let [stmt (.createStatement conn)]
+		 (.executeQuery stmt (str "SELECT * FROM `" table "`"))
+	)
+)
+
+
+(defn get-random-row [rs] 
+  	(def rnd (Random. (System/currentTimeMillis)))
+	(let [is-allowed? (fn [w] (> (.nextDouble rnd) 0.5))] 
+		 (def x (filter is-allowed? rs))
+		 (if (not-empty x) (first x) (first rs))
+	)
+)
+
+(defn get-initialized-db-obj [dbname globals]
+	(let [dbentry (@globals dbname)]
+		(when (not (@globals dbname))
+			(throw (ex-info 
+						(str "Database object not found in global heap: "
+							  dbname
+						)
+					)
+			)
+		)
+		(if (string? (@dbentry :value))
+			(let [connurl (:value @dbentry)
+				  poolmin 10
+				  poolmax 50
+				  connpool (create-pool poolmin poolmax 3 connurl)
+				  newvalue  {:connurl connurl :connpool connpool}
+				 ]
+				 (dosync (alter dbentry :value newvalue))
+				 newvalue
+			)
+			(do
+				(println @dbentry)
+				(assert (map? (:value @dbentry)))
+				(:value @dbentry)
+			)
+		)
+
+	)
+)
+
+(def pick-any_ {:names ["pick-any"] :target-type :sql_table})
+(defn ^{:axon pick-any_} pick-any[target-eval param-evals ctx globals & more]
+	(let 	[init-val (:value (deref-eval target-eval))
+		     fields   (when init-val (str/split init-val #":"))  	     
+		 db 	  (when (= (count fields) 2) (fields 0))
+		 table    (when (= (count fields) 2) (fields 1))
+		 objstr   (str/join "'s" (:objref target-eval))
+		]
+		(when (or (not db) (not table))
+			(throw (ex-info (str "Initial value for " objstr 
+				                 " not specified properly. " 
+				                 "Must be dbname:tablename")
+					)
+			)
+		)
+		(def conn {:datasource (:connpool (get-initialized-db-obj db globals))})
+	  	(get-random-row (jdbc/query conn [(str "select * from `" table "`")]))
+	)	
+)
+
+(def pick_ {:names ["pick"] :target-type :sql_table})
+(defn ^{:axon pick_} pick[target-eval param-evals ctx globals & more]
 	{:value true :type :boolean}
 )
-

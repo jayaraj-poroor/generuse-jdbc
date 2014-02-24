@@ -14,10 +14,13 @@
             :url "http://www.gnu.org/copyleft/lesser.html"}
   :dependencies [[org.clojure/clojure "1.5.1"]
                  [org.generuse/generuse-lib "0.1.0-SNAPSHOT"]  
-				]
+                 [org.clojure/java.jdbc "0.3.3"]
+                 [mysql/mysql-connector-java "5.1.25"] 
+                 [clj-dbcp "0.8.1"]
+				        ]
   :main generuse.mod.jdbc
   :aot  [generuse.mod.jdbc]
-  :repositories {"sonatype-oss-public"
-               "https://oss.sonatype.org/content/groups/public/"}  
+  :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"
+                 "bonecp" "http://mvnrepository.com/artifact/com.jolbox/bonecp/0.8.0.RELEASE"}  
 
 )
