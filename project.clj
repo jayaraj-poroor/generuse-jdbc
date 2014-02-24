@@ -20,7 +20,6 @@
 				        ]
   :main generuse.mod.jdbc
   :aot  [generuse.mod.jdbc]
-  :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"
-                 "bonecp" "http://mvnrepository.com/artifact/com.jolbox/bonecp/0.8.0.RELEASE"}  
+  :repositories {"sonatype-oss-public" "https://oss.sonatype.org/content/groups/public/"}  
 
 )
