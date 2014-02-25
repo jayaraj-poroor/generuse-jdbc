@@ -9,9 +9,8 @@
 
 (ns generuse.mod.jdbc
 	(:gen-class)
-   	(:use 		[generuse.lib.exec :only (deref-eval)]
-            	[clojure.java.jdbc]
-          		[clojure.set 	:only (union)])
+   	(:use 		[generuse.lib.exec 	:only (deref-eval)]
+          		[clojure.set 		:only (union)])
     (:import 	(java.util Random))
  	(:require   [clojure.string 	:as str] 
              	[clj-dbcp.core     	:as dbcp]
@@ -22,14 +21,6 @@
 (defn create-pool[poolmin poolmax partitioncount connurl]
 	(dbcp/make-datasource (union (dbcp/parse-url connurl) {:init-size poolmin :max-active poolmax}))
 )
-
-(defn execute-query [conn table]
-	(println "SELECT * FROM `" table "`")
-	(let [stmt (.createStatement conn)]
-		 (.executeQuery stmt (str "SELECT * FROM `" table "`"))
-	)
-)
-
 
 (defn get-random-row [rs] 
   	(def rnd (Random. (System/currentTimeMillis)))
@@ -49,30 +40,28 @@
 					)
 			)
 		)
-		(if (string? (@dbentry :value))
+		(if (string? (:value @dbentry))
 			(let [connurl (:value @dbentry)
 				  poolmin 10
 				  poolmax 50
 				  connpool (create-pool poolmin poolmax 3 connurl)
 				  newvalue  {:connurl connurl :connpool connpool}
 				 ]
-				 (dosync (alter dbentry :value newvalue))
+				 ;(dosync (alter dbentry :value newvalue))
+				 (dosync (ref-set dbentry {:value newvalue}))
 				 newvalue
 			)
 			(do
-				(println @dbentry)
 				(assert (map? (:value @dbentry)))
 				(:value @dbentry)
 			)
 		)
-
 	)
 )
 
-(def pick-any_ {:names ["pick-any"] :target-type :sql_table})
-(defn ^{:axon pick-any_} pick-any[target-eval param-evals ctx globals & more]
-	(let 	[init-val (:value (deref-eval target-eval))
-		     fields   (when init-val (str/split init-val #":"))  	     
+(defn get-connection-from-pool [target-eval globals]
+	(let [init-val (:value (deref-eval target-eval))
+		 fields   (when init-val (str/split init-val #":"))  	     
 		 db 	  (when (= (count fields) 2) (fields 0))
 		 table    (when (= (count fields) 2) (fields 1))
 		 objstr   (str/join "'s" (:objref target-eval))
@@ -84,12 +73,26 @@
 					)
 			)
 		)
-		(def conn {:datasource (:connpool (get-initialized-db-obj db globals))})
-	  	(get-random-row (jdbc/query conn [(str "select * from `" table "`")]))
-	)	
+		{:db db, :table table  :conn {:datasource (:connpool (get-initialized-db-obj db globals))}}
+	)
+)
+
+(def pick-any_ {:names ["pick-any"] :target-type :sql_table})
+(defn ^{:axon pick-any_} pick-any[target-eval param-evals ctx globals & more]
+  	(let [dbinfo (get-connection-from-pool target-eval globals)]
+     	(get-random-row (jdbc/query (:conn dbinfo) [(str "select * from `" (:table dbinfo) "`")]))
+    )
 )
 
 (def pick_ {:names ["pick"] :target-type :sql_table})
 (defn ^{:axon pick_} pick[target-eval param-evals ctx globals & more]
-	{:value true :type :boolean}
+  	(println "pick Started ")
+  	(let [dbinfo (get-connection-from-pool target-eval globals)]
+     	(let [target (deref-eval target-eval)
+		  	  driver (:value target)
+		  	  url    (:value (deref-eval (:with param-evals)))
+		 	 ]
+			 (println "Driver: " param-evals)
+		)
+    )
 )
