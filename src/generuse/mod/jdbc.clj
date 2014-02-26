@@ -16,7 +16,7 @@
                 [clj-dbcp.core          :as dbcp]
                 [clojure.java.jdbc      :as jdbc]
     )    
-)
+)     
 
 (defn create-pool[poolmin poolmax partitioncount connurl]
     (dbcp/make-datasource (union (dbcp/parse-url connurl) {:init-size poolmin :max-active poolmax}))
