@@ -84,20 +84,37 @@
 (def pick-any_ {:names ["pick-any"] :target-type :sql_table})
 (defn ^{:axon pick-any_} pick-any[target-eval param-evals ctx globals & more]
     (let [dbinfo (get-connection-from-pool target-eval globals)]
-         (get-random-row (jdbc/query (:conn dbinfo) 
-                                     (str "select * from `"(:table dbinfo)"`")))
+         {:value (get-random-row (jdbc/query (:conn dbinfo) 
+                                       (str "select * from `"(:table dbinfo)"`")
+                                 )
+                  )
+          :type :map
+         }
     )
 )
 
 (def pick_ {:names ["pick"] :target-type :sql_table})
 (defn ^{:axon pick_} pick[target-eval param-evals ctx globals & more]
-  	(let [dbinfo (get-connection-from-pool target-eval globals)
- 		  constraint-maker (fn[param] (str (param 0) " = '" 
- 		  							  (:value @(:value (param 1))) "' and " ))
- 		  params (deref-eval param-evals)
+  	(let [dbinfo           (get-connection-from-pool target-eval globals)
+ 		      constraint-maker (fn[param] (str (param 0) 
+                                           " = '" 
+ 		  							                       (:value (deref-eval (param 1))) 
+                                           "' and " 
+                                      )
+                           )
   		 ]
- 		 (jdbc/query (:conn dbinfo) [(str "select * from `"(:table dbinfo)"` where " 
- 		 							 (apply str (map constraint-maker params)) 
- 		 						     " '1' = '1'")])
+       {
+        :value
+        (map
+          #(do {:type :map :value %})
+   		    (jdbc/query (:conn dbinfo) 
+                      [(str "select * from `"(:table dbinfo)"` where " 
+   		 							       (apply str (map constraint-maker param-evals)) 
+   		 						         " '1' = '1'"
+                      )]
+          )
+        )
+        :type :seq ;a sequence of evals
+      }
 	)
 )
