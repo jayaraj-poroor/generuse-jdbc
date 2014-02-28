@@ -19,14 +19,15 @@
 )     
 
 (defn create-pool[poolmin poolmax partitioncount connurl]
-    (dbcp/make-datasource (union (dbcp/parse-url connurl) {:init-size poolmin :max-active poolmax}))
+    (dbcp/make-datasource (union (dbcp/parse-url connurl){:init-size poolmin 
+                                                          :max-active poolmax}))
 )
 
 (defn get-random-row [rs] 
-      (def rnd (Random. (System/currentTimeMillis)))
-    (let [is-allowed? (fn [w] (> (.nextDouble rnd) 0.5))] 
-         (def x (filter is-allowed? rs))
-         (if (not-empty x) (first x) (first rs))
+    (def rnd (Random. (System/currentTimeMillis)))
+    (let [is-allowed? (fn [] (> (.nextDouble rnd) 0.5))] 
+        (def row (some #(when (is-allowed?) %) rs))
+        (if row row (first rs))
     )
 )
 
@@ -47,7 +48,6 @@
                   connpool (create-pool poolmin poolmax 3 connurl)
                   newvalue  {:connurl connurl :connpool connpool}
                  ]
-                 ;(dosync (alter dbentry :value newvalue))
                  (dosync (ref-set dbentry {:value newvalue}))
                  newvalue
             )
@@ -67,28 +67,37 @@
           objstr   (str/join "'s" (:objref target-eval))
          ]
          (when (or (not db) (not table))
-            (throw (ex-info (str "Initial value for " objstr 
-                                 " not specified properly. " 
-                                 "Must be dbname:tablename")
-                    )
-            )
+             (throw (ex-info (str "Initial value for " objstr 
+                                  " not specified properly. " 
+                                  "Must be dbname:tablename")
+                     )
+             )
          )
-         {:db db, :table table  :conn {:datasource (:connpool (get-initialized-db-obj db globals))}}
+         {
+	         :db db, 
+	         :table table  
+	         :conn {:datasource (:connpool (get-initialized-db-obj db globals))}
+         }
     )
 )
 
 (def pick-any_ {:names ["pick-any"] :target-type :sql_table})
 (defn ^{:axon pick-any_} pick-any[target-eval param-evals ctx globals & more]
     (let [dbinfo (get-connection-from-pool target-eval globals)]
-         (get-random-row (jdbc/query (:conn dbinfo) [(str "select * from `" (:table dbinfo) "`")]))
+         (get-random-row (jdbc/query (:conn dbinfo) 
+                                     (str "select * from `"(:table dbinfo)"`")))
     )
 )
 
 (def pick_ {:names ["pick"] :target-type :sql_table})
 (defn ^{:axon pick_} pick[target-eval param-evals ctx globals & more]
-    (let [dbinfo (get-connection-from-pool target-eval globals)
-          constraint-maker (fn[param] (str (param 0) " = '" (:value @(:value (param 1))) "' and " ))
-         ]
-         (jdbc/query (:conn dbinfo) [(str "select * from `" (:table dbinfo) "` where " (apply str (map constraint-maker (deref-eval param-evals))) " '1' = '1'")])
-    )
+  	(let [dbinfo (get-connection-from-pool target-eval globals)
+ 		  constraint-maker (fn[param] (str (param 0) " = '" 
+ 		  							  (:value @(:value (param 1))) "' and " ))
+ 		  params (deref-eval param-evals)
+  		 ]
+ 		 (jdbc/query (:conn dbinfo) [(str "select * from `"(:table dbinfo)"` where " 
+ 		 							 (apply str (map constraint-maker params)) 
+ 		 						     " '1' = '1'")])
+	)
 )
