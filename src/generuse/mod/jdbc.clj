@@ -31,6 +31,23 @@
     )
 )
 
+(defn get-next-row [rs target-eval] 
+    (def update-idx (fn [new-idx] (dosync (alter (:value target-eval) 
+                                                 assoc :pick-any-idx new-idx)
+                                          )
+                                  ) 
+    )
+    (let [is-allowed? (fn [] (> (.nextDouble rnd) 0.5))
+          pick-any-idx  (:pick-any-idx (deref-eval target-eval))
+          pick-any-idx  (if pick-any-idx pick-any-idx 0)
+          idx           (atom 0)      
+         ] 
+        (def row (some #(if (< @idx pick-any-idx) (do (swap! idx inc) nil) %) rs))
+        (if row (do (update-idx (inc @idx)) row) (do (update-idx 0) (first rs)))
+    )
+)
+
+
 (defn get-initialized-db-obj [dbname globals]
     (let [dbentry (@globals dbname)]
         (when (not (@globals dbname))
@@ -83,10 +100,12 @@
 
 (def pick-any_ {:names ["pick-any"] :target-type :sql_table})
 (defn ^{:axon pick-any_} pick-any[target-eval param-evals ctx globals & more]
-    (let [dbinfo (get-connection-from-pool target-eval globals)]
-         (to-eval (get-random-row (jdbc/query (:conn dbinfo) 
+    (let [dbinfo        (get-connection-from-pool target-eval globals)
+         ]
+         (to-eval (get-next-row (jdbc/query (:conn dbinfo) 
                                        (str "select * from `"(:table dbinfo)"`")
-                                 )
+                                )
+                                target-eval
                   )
          )
     )
