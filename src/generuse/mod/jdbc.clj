@@ -9,7 +9,7 @@
  
 (ns generuse.mod.jdbc
     (:gen-class)
-    (:use       [generuse.lib.exec      :only (deref-eval to-eval)]
+    (:use       [generuse.lib.exec      :only (deref-eval to-eval defaxon)]
                 [clojure.set            :only (union)])
     (:import    (java.util Random))
     (:require   [clojure.string         :as str] 
@@ -100,8 +100,7 @@
     )
 )
 
-(def pick-any_ {:names ["pick-any"] :target-type :sql_table})
-(defn ^{:axon pick-any_} pick-any[target-eval param-evals ctx globals & more]
+(defaxon :sql_table ["pick-any"]
     (let [dbinfo        (get-connection-from-pool target-eval globals)
          ]
          (to-eval (get-next-row (jdbc/query (:conn dbinfo) 
@@ -113,8 +112,7 @@
     )
 )
 
-(def pick_ {:names ["pick"] :target-type :sql_table})
-(defn ^{:axon pick_} pick[target-eval param-evals ctx globals & more]
+(defaxon :sql_table ["pick"]
   	(let [dbinfo           (get-connection-from-pool target-eval globals)
  		      constraint-maker (fn[param] (str (param 0) 
                                            " = '" 
