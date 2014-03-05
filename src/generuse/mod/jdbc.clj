@@ -55,6 +55,7 @@
                         (str "Database object not found in global heap: "
                               dbname
                         )
+                        {}
                     )
             )
         )
@@ -87,6 +88,7 @@
              (throw (ex-info (str "Initial value for " objstr 
                                   " not specified properly. " 
                                   "Must be dbname:tablename")
+                              {}
                      )
              )
          )
