@@ -121,18 +121,15 @@
                                       )
                            )
   		 ]
-       {
-        :value
-        (map
-          #(to-eval %)
-   		    (jdbc/query (:conn dbinfo) 
-                      [(str "select * from `"(:table dbinfo)"` where " 
-   		 							       (apply str (map constraint-maker param-evals)) 
-   		 						         " '1' = '1'"
-                      )]
+       (to-eval 
+          (seq
+     		    (jdbc/query (:conn dbinfo) 
+                        [(str "select * from `"(:table dbinfo)"` where " 
+     		 							       (apply str (map constraint-maker param-evals)) 
+     		 						         " '1' = '1'"
+                        )]
+            )
           )
-        )
-        :type :seq ;a sequence of evals
-      }
+       )
 	)
 )
