@@ -23,26 +23,18 @@
                                                           :max-active poolmax}))
 )
 
-(defn get-random-row [rs] 
-    (def rnd (Random. (System/currentTimeMillis)))
-    (let [is-allowed? (fn [] (> (.nextDouble rnd) 0.5))] 
-        (def row (some #(when (is-allowed?) %) rs))
-        (if row row (first rs))
-    )
-)
-
 (defn get-next-row [rs target-eval] 
     (def update-idx (fn [new-idx] (dosync (alter (:value target-eval) 
-                                                 assoc :pick-any-idx new-idx)
+                                                 assoc :pick-any-idx new-idx
                                           )
-                                  ) 
+                                  )
+                    ) 
     )
-    (let [is-allowed? (fn [] (> (.nextDouble rnd) 0.5))
-          pick-any-idx  (:pick-any-idx (deref-eval target-eval))
+    (let [pick-any-idx  (:pick-any-idx (deref-eval target-eval))
           pick-any-idx  (if pick-any-idx pick-any-idx 0)
           idx           (atom 0)      
+          row           (some #(if (< @idx pick-any-idx) (do (swap! idx inc) nil) %) rs)           
          ] 
-        (def row (some #(if (< @idx pick-any-idx) (do (swap! idx inc) nil) %) rs))
         (if row (do (update-idx (inc @idx)) row) (do (update-idx 0) (first rs)))
     )
 )
@@ -101,8 +93,7 @@
 )
 
 (defaxon :sql_table ["pick-any"]
-    (let [dbinfo        (get-connection-from-pool target-eval globals)
-         ]
+    (let [dbinfo        (get-connection-from-pool target-eval globals)]
          (to-eval (get-next-row (jdbc/query (:conn dbinfo) 
                                        (str "select * from `"(:table dbinfo)"`")
                                 )
